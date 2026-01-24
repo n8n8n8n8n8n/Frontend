@@ -8,18 +8,30 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', children, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center font-medium transition-colors duration-150 ease-out disabled:opacity-50 disabled:pointer-events-none'
+    const baseStyles = 'inline-flex items-center justify-center font-medium transition-all duration-200 ease-out disabled:opacity-50 disabled:pointer-events-none'
     
     const variants = {
-      primary: 'bg-accent text-white hover:bg-accent-hover',
-      secondary: 'bg-background-secondary border border-border text-text-primary hover:border-border-hover',
-      ghost: 'text-text-secondary hover:text-text-primary hover:bg-background-secondary',
+      primary: cn(
+        'bg-accent text-white rounded-[10px]',
+        'hover:bg-[#4dd9a3] hover:shadow-[0_0_0_1px_rgba(62,207,142,0.25),0_0_16px_rgba(62,207,142,0.12)]',
+        'active:bg-accent-hover active:shadow-[0_0_0_1px_rgba(62,207,142,0.2),0_0_12px_rgba(62,207,142,0.1)]'
+      ),
+      secondary: cn(
+        'bg-background-secondary border border-border text-text-primary rounded-[10px]',
+        'hover:bg-[#1f1f1f] hover:border-[rgba(255,255,255,0.14)]',
+        'active:bg-background-secondary active:border-border'
+      ),
+      ghost: cn(
+        'text-text-secondary rounded-[8px]',
+        'hover:text-text-primary hover:bg-background-secondary',
+        'active:bg-background-tertiary'
+      ),
     }
     
     const sizes = {
-      sm: 'h-8 px-3 text-sm',
-      md: 'h-10 px-4 text-sm',
-      lg: 'h-12 px-6 text-base',
+      sm: 'h-8 px-3 text-sm rounded-[8px]',
+      md: 'h-10 px-4 text-sm rounded-[10px]',
+      lg: 'h-12 px-6 text-base rounded-[10px]',
     }
 
     return (

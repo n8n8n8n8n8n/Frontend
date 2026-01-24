@@ -18,7 +18,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     <div className={cn('mb-6', className)}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-medium tracking-tight text-text-primary mb-1">
+          <h1 className="text-2xl font-medium text-text-primary mb-1" style={{ letterSpacing: '-0.2%', fontWeight: 500 }}>
             {title}
           </h1>
           {description && (

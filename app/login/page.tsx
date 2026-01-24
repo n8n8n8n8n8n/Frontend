@@ -29,7 +29,7 @@ export default function LoginPage() {
           <Link href="/" className="inline-block mb-4">
             <span className="text-xl font-medium text-text-primary">CodeBuddy</span>
           </Link>
-          <h1 className="text-2xl font-semibold tracking-tight text-text-primary mb-2">
+          <h1 className="text-2xl font-medium text-text-primary mb-2" style={{ letterSpacing: '-0.2%', fontWeight: 500 }}>
             {isSignUp ? 'Create an account' : 'Welcome back'}
           </h1>
           <p className="text-sm text-text-muted">

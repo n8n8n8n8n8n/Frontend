@@ -11,9 +11,14 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-background">
       {/* Desktop Top Navigation - only show when logged in */}
       {isLoggedIn && (
-        <header className="hidden md:block border-b border-border bg-background-secondary">
+        <header className="hidden md:block border-b border-[rgba(255,255,255,0.06)] bg-background">
           <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
+              <img 
+                src="/logobright.png" 
+                alt="CodeBuddy" 
+                className="h-6 w-6"
+              />
               <span className="text-lg font-medium text-text-primary">CodeBuddy</span>
             </div>
             <TopNav />

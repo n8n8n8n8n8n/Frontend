@@ -24,9 +24,14 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen">
       {/* Landing Navigation */}
-      <header className="border-b border-border bg-background-secondary">
+      <header className="border-b border-[rgba(255,255,255,0.06)] bg-background">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
+            <img 
+              src="/logobright.png" 
+              alt="CodeBuddy" 
+              className="h-6 w-6"
+            />
             <span className="text-lg font-medium text-text-primary">CodeBuddy</span>
           </div>
           <Link href="/login">
@@ -40,7 +45,7 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="max-w-4xl mx-auto px-4 py-20 md:py-32">
         <div className="text-center md:text-left">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold text-text-primary mb-6" style={{ letterSpacing: '-0.2%' }}>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-medium text-text-primary mb-6" style={{ letterSpacing: '-0.2%', fontWeight: 500 }}>
             Don't forget how you solved it.
           </h1>
           <p className="text-lg md:text-xl text-text-muted mb-8 max-w-2xl">
