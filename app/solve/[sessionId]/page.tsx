@@ -65,15 +65,29 @@ function getVerdictLabel(verdict: JudgeResult['verdict']): string {
     case 'PASS':
       return '통과'
     case 'LIKELY_PASS':
-      return 'Likely pass'
+      return '통과 가능'
     case 'FAIL':
       return '실패'
     case 'POSSIBLY_FAIL':
-      return 'Possible issues'
+      return '실패 가능'
     case 'TLE_RISK':
-      return 'TLE risk'
+      return '시간 초과 위험'
     default:
       return verdict
+  }
+}
+
+function getVerdictStatusLabel(verdict: JudgeResult['verdict']): string {
+  switch (verdict) {
+    case 'PASS':
+    case 'LIKELY_PASS':
+      return '양호'
+    case 'FAIL':
+    case 'POSSIBLY_FAIL':
+    case 'TLE_RISK':
+      return '주의 필요'
+    default:
+      return '확인 필요'
   }
 }
 
@@ -342,99 +356,84 @@ export default function SolvePage({ params }: SolvePageProps) {
           {/* Judge Result */}
           {session.judge && (
             <Card ref={judgeResultRef}>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-medium text-text-secondary uppercase tracking-wide">
-                    판정 결과
-                  </span>
-                  <Badge
-                    variant="muted"
-                    className={cn('text-xs font-medium', getVerdictColor(session.judge.verdict))}
-                  >
-                    {getVerdictLabel(session.judge.verdict)}
-                  </Badge>
-                  {session.judge.confidence !== undefined && (
-                    <span className="text-xs text-text-muted">
-                      신뢰도: {Math.round(session.judge.confidence * 100)}%
-                    </span>
-                  )}
+              <div className="space-y-6">
+                {/* Result Summary Bar */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-4 border-b border-[rgba(255,255,255,0.06)]">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Badge
+                      variant="muted"
+                      className={cn('text-xs font-medium', getVerdictColor(session.judge.verdict))}
+                    >
+                      {getVerdictStatusLabel(session.judge.verdict)}
+                    </Badge>
+                    {session.judge.confidence !== undefined && (
+                      <span className="text-sm text-text-muted">
+                        신뢰도 {Math.round(session.judge.confidence * 100)}%
+                      </span>
+                    )}
+                    {session.judge.time_complexity && (
+                      <span className="text-sm text-text-muted">
+                        시간 복잡도: {session.judge.time_complexity}
+                      </span>
+                    )}
+                  </div>
+                  <Link href={`/check/${session.id}`} className="flex-shrink-0">
+                    <Button variant="primary" size="md" className="w-full sm:w-auto">
+                      이해도 확인하기
+                    </Button>
+                  </Link>
                 </div>
 
-                {session.judge.reasons.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-text-primary mb-2">
-                      판정 이유
-                    </h3>
-                    <ul className="space-y-1.5">
-                      {session.judge.reasons.map((reason, idx) => (
-                        <li key={idx} className="text-sm text-text-muted flex items-start gap-2">
-                          <span className="text-text-secondary mt-0.5">•</span>
-                          <span>{reason}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {(session.judge.edge_cases_to_test && session.judge.edge_cases_to_test.length > 0) ||
-                 (session.judge.edge_cases && session.judge.edge_cases.length > 0) ? (
-                  <div>
-                    <h3 className="text-sm font-medium text-text-primary mb-2">
-                      엣지 케이스
-                    </h3>
-                    <ul className="space-y-1.5">
-                      {(session.judge.edge_cases_to_test || session.judge.edge_cases || []).map((edgeCase, idx) => (
-                        <li key={idx} className="text-sm text-text-muted flex items-start gap-2">
-                          <span className="text-text-secondary mt-0.5">•</span>
-                          <span>{edgeCase}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-
-                {session.judge.time_complexity && (
-                  <div>
-                    <h3 className="text-sm font-medium text-text-primary mb-1">
-                      시간 복잡도
-                    </h3>
-                    <p className="text-sm text-text-muted">{session.judge.time_complexity}</p>
-                  </div>
-                )}
-
-                {session.judge.next_actions && session.judge.next_actions.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium text-text-primary mb-2">
-                      다음 액션
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {session.judge.next_actions.map((action, idx) => (
-                        <Badge
-                          key={idx}
-                          variant="muted"
-                          className="text-xs"
-                        >
-                          {action === 'ASK_HINT' ? '힌트 요청' : '확인하기'}
-                        </Badge>
-                      ))}
+                {/* Body Content - 2-column layout on desktop */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left Column: 판정 이유 */}
+                  {session.judge.reasons.length > 0 && (
+                    <div>
+                      <h3 className="text-base font-medium text-text-primary mb-3">
+                        판정 이유
+                      </h3>
+                      <ul className="space-y-2.5">
+                        {session.judge.reasons.map((reason, idx) => (
+                          <li key={idx} className="text-sm text-text-muted flex items-start gap-2.5 leading-relaxed">
+                            <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-accent mt-1.5" />
+                            <span>{reason}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  </div>
-                )}
-
-                <div className="pt-3 border-t border-[rgba(255,255,255,0.06)]">
-                  {session.judge.next_actions?.includes('GO_CHECK') ? (
-                    <Link href={`/check/${session.id}`}>
-                      <Button variant="primary" size="md" className="w-full sm:w-auto">
-                        이해도 확인하기
-                      </Button>
-                    </Link>
-                  ) : (
-                    <Link href={`/check/${session.id}`}>
-                      <Button variant="primary" size="md" className="w-full sm:w-auto">
-                        이해도 확인하기
-                      </Button>
-                    </Link>
                   )}
+
+                  {/* Right Column: 엣지 케이스 + 시간 복잡도 */}
+                  <div className="space-y-6">
+                    {(session.judge.edge_cases_to_test && session.judge.edge_cases_to_test.length > 0) ||
+                     (session.judge.edge_cases && session.judge.edge_cases.length > 0) ? (
+                      <div>
+                        <h3 className="text-base font-medium text-text-primary mb-3">
+                          엣지 케이스
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                          {(session.judge.edge_cases_to_test || session.judge.edge_cases || []).map((edgeCase, idx) => (
+                            <Badge
+                              key={idx}
+                              variant="muted"
+                              className="text-xs"
+                            >
+                              {edgeCase}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {session.judge.time_complexity && (
+                      <div>
+                        <h3 className="text-base font-medium text-text-primary mb-2">
+                          시간 복잡도
+                        </h3>
+                        <p className="text-sm text-text-muted leading-relaxed">{session.judge.time_complexity}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </Card>

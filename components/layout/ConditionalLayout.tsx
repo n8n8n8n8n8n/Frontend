@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { TopNav } from '@/components/navigation/TopNav'
 import { BottomTabBar } from '@/components/navigation/BottomTabBar'
+import Link from 'next/link'
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const { isLoggedIn } = useAuth()
@@ -13,14 +14,14 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
       {isLoggedIn && (
         <header className="hidden md:block border-b border-[rgba(255,255,255,0.06)] bg-background">
           <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
+            <Link href="/home" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
               <img 
                 src="/logobright.png" 
                 alt="CodeBuddy" 
                 className="h-6 w-6"
               />
               <span className="text-lg font-medium text-text-primary">CodeBuddy</span>
-            </div>
+            </Link>
             <TopNav />
           </div>
         </header>

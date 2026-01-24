@@ -143,14 +143,17 @@ export default function LandingPage() {
       <header className="border-b border-[rgba(255,255,255,0.08)] bg-background">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+            >
               <img 
                 src="/logobright.png" 
                 alt="CodeBuddy" 
                 className="h-6 w-6"
               />
               <span className="text-lg font-medium text-text-primary">CodeBuddy</span>
-            </div>
+            </button>
             <nav className="hidden sm:flex items-center gap-6">
               <button
                 onClick={handleHowItWorks}
