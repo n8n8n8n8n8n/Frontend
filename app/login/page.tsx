@@ -30,12 +30,12 @@ export default function LoginPage() {
             <span className="text-xl font-medium text-text-primary">CodeBuddy</span>
           </Link>
           <h1 className="text-2xl font-medium text-text-primary mb-2" style={{ letterSpacing: '-0.2%', fontWeight: 500 }}>
-            {isSignUp ? 'Create an account' : 'Welcome back'}
+            {isSignUp ? '계정 만들기' : '돌아오신 것을 환영합니다'}
           </h1>
           <p className="text-sm text-text-muted">
             {isSignUp
-              ? 'Start your coding practice journey'
-              : 'Sign in to continue to your dashboard'}
+              ? '코딩 연습 여정을 시작하세요'
+              : '대시보드로 계속하려면 로그인하세요'}
           </p>
         </div>
 
@@ -43,12 +43,12 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-text-secondary mb-2">
-                Email
+                이메일
               </label>
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="예시@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -57,7 +57,7 @@ export default function LoginPage() {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-text-secondary mb-2">
-                Password
+                비밀번호
               </label>
               <Input
                 id="password"
@@ -70,7 +70,7 @@ export default function LoginPage() {
             </div>
 
             <Button type="submit" variant="primary" className="w-full" size="lg">
-              {isSignUp ? 'Sign up' : 'Login'}
+              {isSignUp ? '회원가입' : '로그인'}
             </Button>
           </form>
 
@@ -82,11 +82,11 @@ export default function LoginPage() {
             >
               {isSignUp ? (
                 <>
-                  Already have an account? <span className="text-accent">Login</span>
+                  이미 계정이 있으신가요? <span className="text-accent">로그인</span>
                 </>
               ) : (
                 <>
-                  Don't have an account? <span className="text-accent">Sign up</span>
+                  계정이 없으신가요? <span className="text-accent">회원가입</span>
                 </>
               )}
             </button>

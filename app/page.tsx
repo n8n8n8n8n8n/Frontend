@@ -186,13 +186,15 @@ export default function LandingPage() {
         <div className="text-center md:text-left flex-1 max-w-2xl">
           <TypingText />
           <h1 
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold text-text-primary mb-5 md:mb-6" 
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold text-text-primary mb-5 md:mb-6" 
             style={{ letterSpacing: '-0.2%', fontWeight: 600 }}
           >
-            해결한 방법을 잊지 마세요.
+            어제 푼 문제, 오늘 설명할 수 있나요?
           </h1>
           <p className="text-lg sm:text-xl md:text-xl text-text-muted mb-8 md:mb-10 max-w-2xl mx-auto md:mx-0 leading-relaxed">
-            풀었던 알고리즘을 기억하세요. 적극 회상과 간격 반복으로 코딩 테스트를 준비하는 더 좋은 방법이에요.
+          CodeBuddy는
+한 번 풀고 잊히는 풀이가 아니라,
+코딩 테스트에서도 다시 꺼낼 수 있는 기억을 만들어줍니다.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center md:justify-start">

@@ -167,20 +167,22 @@ export default function ReviewPage() {
               <p className="text-text-muted text-sm mb-6">
                 Nothing due today.
               </p>
-              <Link href="/start">
-                <Button variant="primary" size="lg" className="mb-4">
-                  Start a session
-                </Button>
-              </Link>
-              {upcomingSessions.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowListView(true)}
-                  className="text-sm text-text-muted hover:text-text-primary transition-colors"
-                >
-                  View queue
-                </button>
-              )}
+              <div className="flex flex-col items-center gap-3">
+                <Link href="/start">
+                  <Button variant="primary" size="lg">
+                    Start a session
+                  </Button>
+                </Link>
+                {upcomingSessions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowListView(true)}
+                    className="text-sm text-text-muted hover:text-text-primary transition-colors"
+                  >
+                    View queue
+                  </button>
+                )}
+              </div>
             </Card>
             
             {upcomingSessions.length > 0 && (
