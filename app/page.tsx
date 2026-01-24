@@ -383,7 +383,7 @@ export default function LandingPage() {
         <div className="space-y-6">
           <div>
             <h3 className="text-base font-medium text-text-primary mb-1.5">
-              1. 문제 기록하기
+              문제 기록하기
             </h3>
             <p className="text-sm text-text-muted">
               코딩 문제를 풀고 메모와 함께 풀이를 기록하세요.
@@ -391,7 +391,7 @@ export default function LandingPage() {
           </div>
           <div>
             <h3 className="text-base font-medium text-text-primary mb-1.5">
-              2. AI 체크 질문에 답하기
+              AI 체크 질문에 답하기
             </h3>
             <p className="text-sm text-text-muted">
               AI가 만든 질문으로 이해도를 확인하세요.
@@ -399,7 +399,7 @@ export default function LandingPage() {
           </div>
           <div>
             <h3 className="text-base font-medium text-text-primary mb-1.5">
-              3. 알맞은 타이밍에 복습하기
+              알맞은 타이밍에 복습하기
             </h3>
             <p className="text-sm text-text-muted">
               복습할 때가 되면 알림을 받아 오래 기억하세요.
