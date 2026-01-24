@@ -197,7 +197,7 @@ export default function LandingPage() {
           <p className="text-lg sm:text-xl md:text-xl text-text-muted mb-8 md:mb-10 max-w-2xl mx-auto md:mx-0 leading-relaxed">
           CodeBuddy는
 한 번 풀고 잊히는 풀이가 아니라,
-코딩 테스트에서도 다시 꺼낼 수 있는 기억을 만들어줍니다.
+코딩 테스트에서 다시 꺼낼 수 있는 기억을 만들어줍니다.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center md:justify-start">
