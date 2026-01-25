@@ -8,7 +8,7 @@ interface SessionStore {
   
   // Actions
   createSession: (problem: Problem) => string
-  updateSession: (sessionId: string, patch: Partial<Omit<Session, 'id' | 'createdAt' | 'problem'>>) => void
+  updateSession: (sessionId: string, patch: Partial<Omit<Session, 'id' | 'createdAt'>>) => void
   setCode: (sessionId: string, code: string) => void
   setJudgeResult: (sessionId: string, judgeResult: JudgeResult) => void
   setUnderstanding: (
