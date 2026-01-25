@@ -156,7 +156,7 @@ export default function ReviewPage() {
     return (
       <ProtectedRoute>
         <div className="min-h-screen pb-20 md:pb-0">
-          <div className="max-w-2xl mx-auto px-4 py-6 md:py-12">
+          <div className="max-w-4xl mx-auto px-4 py-6 md:py-12">
             <div className="mb-8 md:mb-10">
               <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary mb-2" style={{ letterSpacing: '-0.02em', fontWeight: 600 }}>
                 복습
@@ -231,7 +231,7 @@ export default function ReviewPage() {
     return (
       <ProtectedRoute>
         <div className="min-h-screen pb-20 md:pb-0">
-          <div className="max-w-2xl mx-auto px-4 py-6 md:py-12">
+          <div className="max-w-4xl mx-auto px-4 py-6 md:py-12">
             <div className="mb-8 md:mb-10">
               <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary mb-2" style={{ letterSpacing: '-0.02em', fontWeight: 600 }}>
                 복습
@@ -338,7 +338,7 @@ export default function ReviewPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen pb-20 md:pb-0">
-        <div className="max-w-2xl mx-auto px-4 py-6 md:py-12">
+        <div className="max-w-4xl mx-auto px-4 py-6 md:py-12">
           <div className="mb-8 md:mb-10 flex items-center justify-between">
             <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary" style={{ letterSpacing: '-0.02em', fontWeight: 600 }}>
               복습

@@ -1,232 +1,216 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useMemo } from 'react'
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute'
-import { Input } from '@/components/ui/Input'
-import { Select } from '@/components/ui/Select'
-import { Slider } from '@/components/ui/Slider'
-import { SegmentedToggle } from '@/components/ui/SegmentedToggle'
-import { Textarea } from '@/components/ui/Textarea'
-import { Button } from '@/components/ui/Button'
-import { Toast } from '@/components/ui/Toast'
 import { Card } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
+import { useSessionStore } from '@/lib/store/sessionStore'
+import { cn } from '@/lib/utils'
+import Link from 'next/link'
 
-const DIFFICULTY_LABELS = ['매우 쉬움', '쉬움', '보통', '어려움', '매우 어려움']
-const PROBLEM_TYPES = [
-  'DFS/BFS',
-  '구현',
-  'DP',
-  '그리디',
-  '문자열',
-  '자료구조',
-  '그래프',
-  '수학',
-  '정렬',
-  '이진 탐색',
-  '트리',
-  '기타',
-]
+function getPlatformColor(platform: string): string {
+  switch (platform) {
+    case 'BOJ':
+      return 'text-blue-400'
+    case 'LeetCode':
+      return 'text-orange-400'
+    case 'Programmers':
+      return 'text-purple-400'
+    default:
+      return 'text-text-muted'
+  }
+}
+
+function getDifficultyColor(difficulty: string): string {
+  const lower = difficulty.toLowerCase()
+  if (lower === 'easy') return 'text-green-400'
+  if (lower === 'medium') return 'text-yellow-400'
+  if (lower === 'hard') return 'text-red-400'
+  return 'text-text-muted'
+}
+
+function getLogDifficultyLabel(difficulty: number): string {
+  const labels = ['매우 쉬움', '쉬움', '보통', '어려움', '매우 어려움']
+  return labels[difficulty - 1] || '보통'
+}
+
+function formatDate(iso: string | undefined): string {
+  if (!iso) return ''
+  
+  const date = new Date(iso)
+  // 유효하지 않은 날짜인 경우 빈 문자열 반환
+  if (isNaN(date.getTime())) {
+    return ''
+  }
+  
+  const now = new Date()
+  const diffTime = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+  if (diffDays === 0) {
+    return '오늘'
+  } else if (diffDays === 1) {
+    return '어제'
+  } else if (diffDays < 7) {
+    return `${diffDays}일 전`
+  } else if (diffDays < 30) {
+    return `${Math.floor(diffDays / 7)}주 전`
+  } else {
+    return date.toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+  }
+}
 
 export default function LogPage() {
-  const router = useRouter()
-  const [showToast, setShowToast] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  // sessions 객체를 직접 가져와서 useMemo 내부에서 처리
+  const sessions = useSessionStore((state) => state.sessions)
 
-  // Form state
-  const [problemLink, setProblemLink] = useState('')
-  const [problemType, setProblemType] = useState('')
-  const [difficulty, setDifficulty] = useState(3)
-  const [isSuccess, setIsSuccess] = useState('success')
-  const [timeSpent, setTimeSpent] = useState('')
-  const [usedHint, setUsedHint] = useState(false)
-  const [memo, setMemo] = useState('')
+  // 로그가 저장된 세션들만 필터링 (loggedAt이 있는 세션)
+  const loggedSessions = useMemo(() => {
+    // sessions가 없거나 빈 객체인 경우 빈 배열 반환
+    if (!sessions || Object.keys(sessions).length === 0) {
+      return []
+    }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-
-    // Fake submission delay
-    await new Promise((resolve) => setTimeout(resolve, 800))
-
-    setShowToast(true)
-    setIsSubmitting(false)
-
-    // Redirect after toast
-    setTimeout(() => {
-      const fakeSessionId = `session-${Date.now()}`
-      router.push(`/check/${fakeSessionId}`)
-    }, 1500)
-  }
+    const allSessions = Object.values(sessions)
+    return allSessions
+      .filter((session) => session && session.loggedAt)
+      .sort((a, b) => {
+        // 최신순 정렬
+        const aDate = new Date(a.loggedAt || a.updatedAt)
+        const bDate = new Date(b.loggedAt || b.updatedAt)
+        return bDate.getTime() - aDate.getTime()
+      })
+  }, [sessions])
 
   return (
     <ProtectedRoute>
       <div className="min-h-screen pb-24 md:pb-0">
-        <div className="max-w-xl mx-auto px-4 py-6 md:py-12">
+        <div className="max-w-4xl mx-auto px-4 py-6 md:py-12">
           {/* Header */}
           <div className="mb-8 md:mb-10">
             <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary mb-2" style={{ letterSpacing: '-0.02em', fontWeight: 600 }}>
-              방금 푼 문제, 기록해두세요
+              기록 히스토리
             </h1>
             <p className="text-sm sm:text-base text-text-muted leading-relaxed">
-              지금 정리해두면 다음에 훨씬 빨리 떠올릴 수 있어요
+              지금까지 기록한 모든 문제를 확인할 수 있어요
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {/* 1) Problem Identification - Compact */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-text-primary mb-2">
-                  문제 링크 또는 문제 번호
-                </label>
-                <Input
-                  type="text"
-                  value={problemLink}
-                  onChange={(e) => setProblemLink(e.target.value)}
-                  placeholder="백준 2178 또는 LeetCode Two Sum"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-text-primary mb-2">
-                  문제 유형
-                </label>
-                <Select
-                  value={problemType}
-                  onChange={(e) => setProblemType(e.target.value)}
-                  required
-                >
-                  <option value="">선택하세요</option>
-                  {PROBLEM_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            </div>
-
-            {/* 2) Main Section - Most Prominent Card */}
-            <Card className="space-y-6">
-              <h2 className="text-base font-medium text-text-primary">
-                이 문제, 어땠나요?
-              </h2>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-text-primary mb-3">
-                    체감 난이도
-                  </label>
-                  <div className="space-y-3">
-                    <Slider
-                      type="range"
-                      min="1"
-                      max="5"
-                      value={difficulty}
-                      onChange={(e) => setDifficulty(Number(e.target.value))}
-                      className="w-full"
-                    />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-text-muted">
-                        {DIFFICULTY_LABELS[difficulty - 1]}
-                      </span>
-                      <span className="text-sm text-text-muted">
-                        {difficulty} / 5
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-text-primary mb-3">
-                    풀이 결과
-                  </label>
-                  <SegmentedToggle
-                    options={[
-                      { value: 'success', label: '성공' },
-                      { value: 'failure', label: '실패' },
-                    ]}
-                    value={isSuccess}
-                    onChange={setIsSuccess}
-                    className="w-full"
-                  />
-                </div>
-              </div>
+          {/* Log List */}
+          {loggedSessions.length === 0 ? (
+            <Card className="text-center py-12">
+              <p className="text-text-muted mb-4">아직 기록한 문제가 없어요</p>
+              <p className="text-sm text-text-muted">
+                문제를 풀고 제출하면 자동으로 기록할 수 있어요
+              </p>
             </Card>
-
-            {/* 3) Supporting Info - Compact, Grouped */}
+          ) : (
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-text-primary mb-2">
-                  풀이 소요 시간 (분)
-                </label>
-                <Input
-                  type="number"
-                  value={timeSpent}
-                  onChange={(e) => setTimeSpent(e.target.value)}
-                  placeholder="예: 30"
-                  min="1"
-                  required
-                />
-              </div>
+              {loggedSessions.map((session) => {
+                // session이나 problem이 없으면 렌더링하지 않음
+                if (!session || !session.problem) {
+                  return null
+                }
+                
+                return (
+                <Link
+                  key={session.id}
+                  href={`/solve/${session.id}`}
+                  className="block"
+                >
+                  <Card className="hover:bg-background-tertiary transition-colors cursor-pointer">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start gap-3 mb-3">
+                          <h3 className="text-base font-medium text-text-primary flex-1">
+                            {session.problem.title || '제목 없음'}
+                          </h3>
+                          {session.loggedAt && (
+                            <span className="text-xs text-text-muted whitespace-nowrap">
+                              {formatDate(session.loggedAt)}
+                            </span>
+                          )}
+                        </div>
 
-              <div>
-                <label className="flex items-center gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={usedHint}
-                    onChange={(e) => setUsedHint(e.target.checked)}
-                    className="w-4 h-4 rounded border border-border bg-background-secondary text-accent focus:ring-1 focus:ring-accent/10 focus:ring-offset-0 cursor-pointer transition-all duration-150 ease-out checked:bg-accent checked:border-accent"
-                  />
-                  <span className="text-sm text-text-primary">
-                    풀이 중 힌트를 사용했어요
-                  </span>
-                </label>
-              </div>
-            </div>
+                        <div className="flex items-center gap-2 flex-wrap mb-3">
+                          {session.problem.platform && (
+                            <>
+                              <span className={cn('text-xs font-medium', getPlatformColor(session.problem.platform))}>
+                                {session.problem.platform}
+                              </span>
+                              <span className="text-text-muted text-xs">•</span>
+                            </>
+                          )}
+                          {session.problem.difficulty && (
+                            <span className={cn('text-xs font-medium', getDifficultyColor(session.problem.difficulty))}>
+                              {session.problem.difficulty}
+                            </span>
+                          )}
+                          {session.problem.tags && session.problem.tags.length > 0 && session.problem.tags.slice(0, 3).map((tag) => (
+                            <Badge key={tag} variant="muted" className="text-[10px] py-0 px-1.5 h-4">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
 
-            {/* 4) Optional Memo */}
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">
-                메모 (선택)
-              </label>
-              <Textarea
-                value={memo}
-                onChange={(e) => setMemo(e.target.value)}
-                placeholder="헷갈렸던 포인트나, 다음에 다시 보면 좋을 메모&#10;(한 줄만 써도 충분해요)"
-                rows={3}
-              />
+                        {/* Log 정보 */}
+                        <div className="flex items-center gap-4 text-sm">
+                          {session.logDifficulty && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-text-muted">체감 난이도:</span>
+                              <span className="text-text-secondary">
+                                {getLogDifficultyLabel(session.logDifficulty)} ({session.logDifficulty}/5)
+                              </span>
+                            </div>
+                          )}
+                          {session.logResult && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-text-muted">결과:</span>
+                              <Badge
+                                variant={session.logResult === 'success' ? 'muted' : 'muted'}
+                                className={cn(
+                                  'text-xs',
+                                  session.logResult === 'success'
+                                    ? 'text-green-400'
+                                    : 'text-red-400'
+                                )}
+                              >
+                                {session.logResult === 'success' ? '성공' : '실패'}
+                              </Badge>
+                            </div>
+                          )}
+                          {session.judge && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-text-muted">판정:</span>
+                              <span className={cn(
+                                'text-xs',
+                                session.judge.verdict === 'PASS' || session.judge.verdict === 'LIKELY_PASS'
+                                  ? 'text-green-400'
+                                  : 'text-red-400'
+                              )}>
+                                {session.judge.verdict === 'PASS' ? '통과' :
+                                 session.judge.verdict === 'LIKELY_PASS' ? '통과 가능' :
+                                 session.judge.verdict === 'FAIL' ? '실패' :
+                                 session.judge.verdict === 'POSSIBLY_FAIL' ? '실패 가능' :
+                                 session.judge.verdict === 'TLE_RISK' ? '시간 초과 위험' :
+                                 session.judge.verdict}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+                )
+              })}
             </div>
-
-            {/* Submit Button - Sticky on mobile */}
-            <div className="fixed bottom-0 left-0 right-0 z-10 md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto border-t border-border bg-background/95 backdrop-blur-sm md:border-0 md:bg-transparent md:backdrop-blur-none p-4 md:p-0 md:pt-4">
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                className="w-full md:w-auto rounded-[12px] transition-all duration-200 ease-out hover:shadow-[0_0_0_1px_rgba(53,192,130,0.25),0_0_20px_rgba(53,192,130,0.15)]"
-                style={{
-                  backgroundColor: '#2fb87a',
-                  color: '#ffffff',
-                }}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? '저장 중...' : '기록 완료하고 체크하기 →'}
-              </Button>
-            </div>
-          </form>
+          )}
         </div>
-
-        {showToast && (
-          <Toast
-            message="문제가 기록되었어요"
-            type="success"
-            duration={2000}
-            onClose={() => setShowToast(false)}
-          />
-        )}
       </div>
     </ProtectedRoute>
   )

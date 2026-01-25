@@ -17,6 +17,7 @@ interface SessionStore {
     level: UnderstandingLevel,
     reviewAt?: string
   ) => void
+  setLog: (sessionId: string, difficulty: number, result: 'success' | 'failure') => void
   
   // Selectors
   getSession: (id: string) => Session | undefined
@@ -93,6 +94,14 @@ export const useSessionStore = create<SessionStore>()(
           understandingLevel: level,
           reviewAt: computedReviewAt,
           status: "SCHEDULED",
+        })
+      },
+
+      setLog: (sessionId: string, difficulty: number, result: 'success' | 'failure') => {
+        get().updateSession(sessionId, {
+          logDifficulty: difficulty,
+          logResult: result,
+          loggedAt: new Date().toISOString(),
         })
       },
 

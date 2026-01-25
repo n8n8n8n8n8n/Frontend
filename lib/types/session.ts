@@ -40,4 +40,8 @@ export type Session = {
   reviewAt?: string // ISO date string
   reviewedAt?: string // ISO date string - when this review was completed
   status: "DRAFT" | "SUBMITTED" | "CHECKED" | "SCHEDULED"
+  // Log information
+  logDifficulty?: number // 1-5, user's perceived difficulty
+  logResult?: 'success' | 'failure' // user's self-reported result
+  loggedAt?: string // ISO date string - when the log was saved
 }

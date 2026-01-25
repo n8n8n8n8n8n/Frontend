@@ -108,29 +108,65 @@ function getPlatformColor(platform: string): string {
   }
 }
 
+type SearchState = 'idle' | 'loading' | 'success' | 'failure'
+
 export default function StartPage() {
   const router = useRouter()
   const { createSession } = useSessionStore()
   const [urlInput, setUrlInput] = useState('')
   const [previewProblem, setPreviewProblem] = useState<Problem | null>(null)
+  const [searchState, setSearchState] = useState<SearchState>('idle')
 
-  const handleUrlSubmit = (e: React.FormEvent) => {
+  // Extract problem number from input (e.g., "1920", "2178", "two-sum")
+  const extractProblemNumber = (input: string): string | null => {
+    const trimmed = input.trim()
+    // Extract numbers from URL or plain number
+    const numberMatch = trimmed.match(/\/(\d+)/) || trimmed.match(/^(\d+)$/)
+    if (numberMatch) return numberMatch[1]
+    
+    // Extract slug from URL (e.g., "two-sum" from leetcode URL)
+    const slugMatch = trimmed.match(/\/([^\/]+)\/?$/)
+    if (slugMatch) return slugMatch[1]
+    
+    return null
+  }
+
+  // Search for problem in DUMMY_PROBLEMS by number or URL
+  const searchProblem = async (input: string): Promise<Problem | null> => {
+    const problemNumber = extractProblemNumber(input)
+    if (!problemNumber) return null
+
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    // Search in DUMMY_PROBLEMS
+    const found = DUMMY_PROBLEMS.find(problem => {
+      const problemNum = extractProblemNumber(problem.url)
+      return problemNum === problemNumber || problem.url.includes(problemNumber)
+    })
+
+    return found || null
+  }
+
+  const handleUrlSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!urlInput.trim()) return
 
-    const platform = inferPlatform(urlInput)
-    const problemId = `imported_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    
-    const problem: Problem = {
-      id: problemId,
-      title: '불러온 문제',
-      platform,
-      difficulty: 'Unknown',
-      tags: [],
-      url: urlInput.trim(),
-    }
+    setSearchState('loading')
+    setPreviewProblem(null)
 
-    setPreviewProblem(problem)
+    try {
+      const problem = await searchProblem(urlInput.trim())
+      
+      if (problem) {
+        setPreviewProblem(problem)
+        setSearchState('success')
+      } else {
+        setSearchState('failure')
+      }
+    } catch (error) {
+      setSearchState('failure')
+    }
   }
 
   const handleStartSession = (problem: Problem) => {
@@ -189,7 +225,20 @@ export default function StartPage() {
                 </Button>
               </form>
 
-              {previewProblem && (
+              {/* Loading state */}
+              {searchState === 'loading' && (
+                <div className="mt-6 pt-6 border-t border-[rgba(255,255,255,0.06)]">
+                  <div className="flex items-center justify-center py-8">
+                    <div className="flex items-center gap-3 text-text-muted">
+                      <div className="w-5 h-5 border-2 border-text-muted border-t-transparent rounded-full animate-spin" />
+                      <span className="text-sm">문제를 찾는 중...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Success state: Preview */}
+              {searchState === 'success' && previewProblem && (
                 <div className="mt-6 pt-6 border-t border-[rgba(255,255,255,0.06)]">
                   <div className="mb-3">
                     <span className="text-xs font-medium text-text-secondary uppercase tracking-wide">
@@ -221,6 +270,69 @@ export default function StartPage() {
                       </Button>
                     </div>
                   </Card>
+                </div>
+              )}
+
+              {/* Failure state */}
+              {searchState === 'failure' && (
+                <div className="mt-6 pt-6 border-t border-[rgba(255,255,255,0.06)]">
+                  <div className="text-center py-6">
+                    <div className="mb-4">
+                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[rgba(53,192,130,0.12)] mb-3">
+                        <svg className="w-6 h-6 text-[#35c082]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                    </div>
+                    <h3 className="text-base font-medium text-text-primary mb-2">
+                      문제를 찾을 수 없어요
+                    </h3>
+                    <p className="text-sm text-text-muted leading-relaxed mb-6 max-w-md mx-auto">
+                      해당 문제 번호에 맞는 문제가 존재하지 않아요.
+                      <br />
+                      문제 번호를 다시 확인하거나 직접 문제를 등록해 주세요.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                      <Button
+                        variant="primary"
+                        size="md"
+                        onClick={() => {
+                          setUrlInput('')
+                          setSearchState('idle')
+                          setPreviewProblem(null)
+                          // Focus on input after clearing
+                          setTimeout(() => {
+                            const input = document.querySelector('input[type="text"]') as HTMLInputElement
+                            input?.focus()
+                          }, 100)
+                        }}
+                        className="min-w-[160px]"
+                      >
+                        문제 번호 다시 입력
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="md"
+                        onClick={() => {
+                          // Create a manual problem entry
+                          const platform = inferPlatform(urlInput.trim())
+                          const problemId = `imported_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+                          const manualProblem: Problem = {
+                            id: problemId,
+                            title: urlInput.trim(),
+                            platform,
+                            difficulty: 'Unknown',
+                            tags: [],
+                            url: urlInput.trim(),
+                          }
+                          handleStartSession(manualProblem)
+                        }}
+                        className="min-w-[160px]"
+                      >
+                        직접 문제 등록하기
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               )}
             </Card>
