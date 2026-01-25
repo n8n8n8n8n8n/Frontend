@@ -141,6 +141,7 @@ export default function StartPage() {
 
     // Search in DUMMY_PROBLEMS
     const found = DUMMY_PROBLEMS.find(problem => {
+      if (!problem.url) return false
       const problemNum = extractProblemNumber(problem.url)
       return problemNum === problemNumber || problem.url.includes(problemNumber)
     })
