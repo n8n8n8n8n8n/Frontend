@@ -120,6 +120,20 @@ function getVerdictStatusLabel(verdict: JudgeResult['verdict']): string {
   }
 }
 
+function getUnderstandingBadgeStyle(level: string | null): string {
+  if (!level) return 'bg-gray-500/20 text-gray-400'
+  
+  const lower = level.toLowerCase()
+  if (lower.includes('낮음') || lower.includes('low')) {
+    return 'bg-red-500/20 text-red-400'
+  } else if (lower.includes('보통') || lower.includes('medium') || lower.includes('normal')) {
+    return 'bg-amber-500/20 text-amber-400'
+  } else if (lower.includes('높음') || lower.includes('high')) {
+    return 'bg-green-500/20 text-green-400'
+  }
+  return 'bg-gray-500/20 text-gray-400'
+}
+
 async function submitToJudge(session: Session): Promise<JudgeResult> {
   const client = createJudgeClient()
 
@@ -1043,14 +1057,15 @@ export default function SolvePage({ params }: SolvePageProps) {
           )}
 
           {n8nResponse && (
-            <Card>
+            <Card className="pb-6">
               <h3 className="text-lg font-medium text-text-primary mb-4">채점 결과</h3>
               
               <div className="space-y-4">
-                {/* Verdict */}
-                <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="text-sm font-medium text-text-secondary">결과</span>
+                {/* Summary Row - 결과, 이해도, 복습 일정 */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* 결과 */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-text-secondary">결과</span>
                     <span
                       className={cn(
                         'px-3 py-1 rounded-[6px] text-sm font-semibold',
@@ -1066,59 +1081,67 @@ export default function SolvePage({ params }: SolvePageProps) {
                       {n8nResponse.verdict}
                     </span>
                   </div>
+
+                  {/* 이해도 */}
+                  {n8nResponse.understandingLevel && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-text-secondary">이해도</span>
+                      <span
+                        className={cn(
+                          'px-3 py-1 rounded-[6px] text-sm font-semibold',
+                          getUnderstandingBadgeStyle(n8nResponse.understandingLevel)
+                        )}
+                      >
+                        {n8nResponse.understandingLevel}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* 복습 일정 */}
+                  {n8nResponse.reviewDays.length > 0 && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-medium text-text-secondary">복습 일정</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {n8nResponse.reviewDays.map((day, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-1 rounded-[6px] text-xs font-medium bg-background-tertiary text-text-secondary border border-border"
+                          >
+                            D+{day}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Passed/Total */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
+                {/* Passed/Total - 세그먼트 타일 */}
+                <div className="w-full md:w-1/2">
+                  <div className="flex items-center gap-2 mb-2">
                     <span className="text-sm font-medium text-text-secondary">통과한 테스트</span>
                     <span className="text-sm text-text-primary">
                       {n8nResponse.passed} / {n8nResponse.total}
                     </span>
                   </div>
                   {n8nResponse.total > 0 && (
-                    <div className="h-2 bg-background-tertiary rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-accent transition-all duration-300"
-                        style={{ width: `${(n8nResponse.passed / n8nResponse.total) * 100}%` }}
-                      />
+                    <div className="flex gap-1.5">
+                      {Array.from({ length: n8nResponse.total }, (_, idx) => {
+                        const isPassed = idx < n8nResponse.passed
+                        return (
+                          <div
+                            key={idx}
+                            className={cn(
+                              'w-5 h-5 rounded-[4px] transition-all duration-300',
+                              isPassed
+                                ? 'bg-accent/30 border border-accent/40'
+                                : 'bg-background-tertiary border border-border'
+                            )}
+                          />
+                        )
+                      })}
                     </div>
                   )}
                 </div>
-
-                {/* Understanding Level */}
-                {n8nResponse.understandingLevel && (
-                  <div>
-                    <span className="text-sm font-medium text-text-secondary">이해도: </span>
-                    <span className="text-sm text-text-primary">{n8nResponse.understandingLevel}</span>
-                  </div>
-                )}
-
-                {/* Needs Review */}
-                {n8nResponse.needsReview && (
-                  <div>
-                    <span className="inline-block px-3 py-1 rounded-[6px] text-sm font-medium bg-accent/20 text-accent">
-                      복습 필요
-                    </span>
-                  </div>
-                )}
-
-                {/* Review Days */}
-                {n8nResponse.reviewDays.length > 0 && (
-                  <div>
-                    <span className="text-sm font-medium text-text-secondary mb-2 block">복습 일정</span>
-                    <div className="flex flex-wrap gap-2">
-                      {n8nResponse.reviewDays.map((day, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-1 rounded-[6px] text-xs font-medium bg-background-tertiary text-text-secondary border border-border"
-                        >
-                          D+{day}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {/* Hint Level 1 */}
                 {n8nResponse.hintLevel1 && (
@@ -1158,6 +1181,9 @@ export default function SolvePage({ params }: SolvePageProps) {
           )}
         </div>
       </div>
+      
+      {/* Bottom spacing */}
+      <div className="h-8 md:h-12" />
 
       {/* Quick Log Modal */}
       <QuickLogModal
