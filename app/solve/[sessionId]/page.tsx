@@ -21,7 +21,7 @@ const WEBHOOK_URL = ''
 // n8n 페이로드 타입
 type N8nPayload = {
   userId: string
-  problemId: string
+  problemId: number
   language: string
   code: string
   timeSpent: number
@@ -370,8 +370,10 @@ export default function SolvePage({ params }: SolvePageProps) {
       return
     }
 
-    // problemId는 문제 ID 또는 제목 사용
-    const problemId = session.problem.id || session.problem.title || 'A001'
+    // problemId는 문제 ID를 정수로 변환
+    // session.problem.id가 숫자 문자열이면 정수로 변환, 아니면 0 사용
+    const problemIdStr = session.problem.id || '0'
+    const problemId = parseInt(problemIdStr, 10) || 0
 
     const payload: N8nPayload = {
       userId: 'test-user', // 고정값

@@ -15,7 +15,7 @@ const WEBHOOK_URL = ''
 // 페이로드 타입 정의
 type Payload = {
   userId: string
-  problemId: string
+  problemId: number
   language: string
   code: string
   timeSpentMin: number
@@ -88,10 +88,12 @@ export default function LogAttemptPage() {
   const buildPayload = (): Payload => {
     const trimmedCode = code.trim()
     const timeValue = parseInt(timeSpentMin, 10) || 0
+    // problemId를 정수로 변환 (숫자 문자열이 아니면 0 사용)
+    const problemIdNum = parseInt(problemId.trim(), 10) || 0
 
     return {
       userId: userId.trim(),
-      problemId: problemId.trim(),
+      problemId: problemIdNum,
       language: 'python', // 고정값
       code: trimmedCode,
       timeSpentMin: Math.max(0, timeValue), // 음수 방지
