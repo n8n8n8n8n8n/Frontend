@@ -315,16 +315,21 @@ export default function LandingPage() {
           <FeatureCard
             icon={
               <svg className="w-4 h-4 text-accent/90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
               </svg>
             }
-            title="세션 기록"
-            description="문제를 풀고, 핵심만 남깁니다."
+            title="AI 채점 시스템"
+            description="코드를 제출하면 AI가 실시간으로 분석하고 채점합니다. 판정 결과, 통과한 테스트, 이해도 평가, 힌트와 추가 질문까지 제공해요."
             mock={
-              <div className="flex flex-col gap-1.5 mt-3">
-                <div className="h-1.5 w-full max-w-[85%] rounded bg-[rgba(255,255,255,0.06)]" />
-                <div className="h-1.5 w-full max-w-[70%] rounded bg-[rgba(255,255,255,0.05)]" />
-                <div className="h-1.5 w-12 rounded bg-accent/10" />
+              <div className="flex flex-col gap-2 mt-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-4 rounded bg-green-500/20 border border-green-500/40" />
+                  <div className="h-4 w-4 rounded bg-green-500/20 border border-green-500/40" />
+                  <div className="h-4 w-4 rounded bg-background-tertiary border border-border" />
+                  <div className="h-4 w-4 rounded bg-background-tertiary border border-border" />
+                  <div className="h-4 w-4 rounded bg-background-tertiary border border-border" />
+                </div>
+                <div className="h-1.5 w-full max-w-[75%] rounded bg-[rgba(255,255,255,0.06)]" />
               </div>
             }
           />
@@ -334,11 +339,12 @@ export default function LandingPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
               </svg>
             }
-            title="이해도 질문"
-            description="설명할 수 있는지로 진짜 이해를 확인해요."
+            title="이해도 체크"
+            description="AI가 만든 3문항 질문에 답하여 진짜 이해했는지 확인합니다. 표면/부분/완전 이해 수준에 따라 복습 일정이 자동으로 조정돼요."
             mock={
               <div className="flex flex-col gap-2 mt-3">
                 <div className="h-2 w-full rounded bg-[rgba(255,255,255,0.06)]" />
+                <div className="h-2 w-full max-w-[85%] rounded bg-[rgba(255,255,255,0.05)]" />
                 <div className="flex gap-1.5">
                   <div className="h-1.5 flex-1 rounded bg-[rgba(255,255,255,0.05)]" />
                   <div className="h-1.5 w-8 rounded bg-accent/15" />
@@ -349,11 +355,11 @@ export default function LandingPage() {
           <FeatureCard
             icon={
               <svg className="w-4 h-4 text-accent/90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 6h16M4 12h16m-7 6h7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             }
-            title="지연 복습 큐"
-            description="오늘 할 복습은 하나만 보여줘요."
+            title="간격 반복 복습"
+            description="간격 반복 알고리즘이 최적의 타이밍에 복습할 문제를 알려줍니다. 오늘 할 복습만 보여주어 집중력을 높여요."
             mock={
               <div className="flex flex-col gap-1.5 mt-3">
                 <div className="h-2 w-full rounded bg-accent/12 border border-accent/20" />
@@ -365,18 +371,16 @@ export default function LandingPage() {
           <FeatureCard
             icon={
               <svg className="w-4 h-4 text-accent/90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             }
-            title="워크벤치 모드"
-            description="지금 해야 할 것에만 집중합니다."
+            title="학습 기록 관리"
+            description="풀었던 모든 문제를 체계적으로 기록하고 관리합니다. 체감 난이도, 풀이 결과, 판정 정보를 함께 저장해 나중에 쉽게 찾아볼 수 있어요."
             mock={
-              <div className="flex gap-2 mt-3">
-                <div className="h-8 w-8 rounded-lg bg-[rgba(255,255,255,0.06)] flex-shrink-0" />
-                <div className="flex-1 flex flex-col gap-1.5 justify-center">
-                  <div className="h-1.5 w-full max-w-[75%] rounded bg-[rgba(255,255,255,0.06)]" />
-                  <div className="h-1.5 w-16 rounded bg-[rgba(255,255,255,0.04)]" />
-                </div>
+              <div className="flex flex-col gap-1.5 mt-3">
+                <div className="h-1.5 w-full max-w-[85%] rounded bg-[rgba(255,255,255,0.06)]" />
+                <div className="h-1.5 w-full max-w-[70%] rounded bg-[rgba(255,255,255,0.05)]" />
+                <div className="h-1.5 w-12 rounded bg-accent/10" />
               </div>
             }
           />
@@ -406,7 +410,7 @@ export default function LandingPage() {
               <span className="text-sm font-medium text-accent">1</span>
             </div>
             <div>
-              <h3 className="text-lg font-medium text-text-primary mb-1.5">1. 세션 기록하기</h3>
+              <h3 className="text-lg font-medium text-text-primary mb-1.5">세션 기록하기</h3>
               <p className="text-sm text-text-muted leading-relaxed">
                 코딩 문제를 풀고 메모와 함께 풀이를 기록하세요. 무엇을 배웠는지, 어떻게 접근했는지 적어두면 나중에 복습할 때 도움이 됩니다.
               </p>
@@ -418,7 +422,7 @@ export default function LandingPage() {
               <span className="text-sm font-medium text-accent">2</span>
             </div>
             <div>
-              <h3 className="text-lg font-medium text-text-primary mb-1.5">2. 이해도 질문 3문항에 답하기</h3>
+              <h3 className="text-lg font-medium text-text-primary mb-1.5">이해도 질문 3문항에 답하기</h3>
               <p className="text-sm text-text-muted leading-relaxed">
                 AI가 만든 질문으로 이해도를 확인하세요. 문제만 기억하는 게 아니라 풀이를 제대로 기억하는지 검증합니다.
               </p>
@@ -430,7 +434,7 @@ export default function LandingPage() {
               <span className="text-sm font-medium text-accent">3</span>
             </div>
             <div>
-              <h3 className="text-lg font-medium text-text-primary mb-1.5">3. 알맞은 타이밍에 복습하기</h3>
+              <h3 className="text-lg font-medium text-text-primary mb-1.5">알맞은 타이밍에 복습하기</h3>
               <p className="text-sm text-text-muted leading-relaxed">
                 복습할 때가 되면 알림을 받으세요. 간격 반복 알고리즘이 최적의 간격으로 복습해 오래 기억하도록 돕습니다.
               </p>

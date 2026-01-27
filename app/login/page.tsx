@@ -102,7 +102,7 @@ export default function LoginPage() {
           <p className="text-sm text-text-muted">
             {isSignUp
               ? '코딩 연습 여정을 시작하세요'
-              : '(개발중) 이메일/비번 아무거나 입력하면 로그인 가능'}
+              : '심사용 데모 환경입니다. 이메일과 비밀번호는 임의로 입력하시면 됩니다.'}
           </p>
         </div>
 
