@@ -441,6 +441,9 @@ export default function SolvePage({ params }: SolvePageProps) {
     }
 
     try {
+      // 디버깅: 요청 페이로드 로그
+      console.log('n8n으로 전송하는 페이로드:', JSON.stringify(payload, null, 2))
+      
       // 먼저 직접 웹훅 호출 시도
       let response = await fetch(WEBHOOK_URL, {
         method: 'POST',
@@ -450,16 +453,35 @@ export default function SolvePage({ params }: SolvePageProps) {
         body: JSON.stringify(payload),
       })
 
+      // 디버깅: 응답 헤더 확인
+      console.log('n8n 응답 상태:', response.status, response.statusText)
+      console.log('n8n 응답 헤더:', Object.fromEntries(response.headers.entries()))
+
       // CORS 에러가 발생하면 API 라우트를 통해 재시도
       if (!response.ok) {
         const errorText = await response.text()
+        console.error('n8n 응답 에러:', response.status, errorText)
         throw new Error(`HTTP ${response.status}: ${errorText}`)
+      }
+
+      // n8n이 204(No Content) 또는 빈 body로 성공을 반환하는 경우가 있어 허용
+      if (response.status === 204) {
+        setN8nResponse(null)
+        console.log('n8n으로 전송 성공(204 No Content):', payload)
+        return
       }
 
       // 응답 본문 확인
       const responseText = await response.text()
+      console.log('n8n 응답 본문 길이:', responseText.length)
+      console.log('n8n 응답 본문 (처음 500자):', responseText.substring(0, 500))
+      
       if (!responseText || responseText.trim() === '') {
-        throw new Error('서버에서 빈 응답을 받았습니다.')
+        setN8nResponse(null)
+        console.warn('⚠️ n8n 응답이 비어있습니다(OK). status=', response.status)
+        console.warn('⚠️ n8n 워크플로우가 응답을 제대로 반환하지 않는 것 같습니다. 워크플로우의 "Respond to Webhook" 노드를 확인해주세요.')
+        setN8nError('n8n 서버가 빈 응답을 반환했습니다. 워크플로우 설정을 확인해주세요.')
+        return
       }
 
       let data
@@ -491,10 +513,17 @@ export default function SolvePage({ params }: SolvePageProps) {
             throw new Error(`HTTP ${proxyResponse.status}: ${errorText}`)
           }
 
+          // 프록시도 204/빈 body를 성공으로 취급
+          if (proxyResponse.status === 204) {
+            setN8nResponse(null)
+            return
+          }
+
           // 응답 본문 확인
           const proxyResponseText = await proxyResponse.text()
           if (!proxyResponseText || proxyResponseText.trim() === '') {
-            throw new Error('서버에서 빈 응답을 받았습니다.')
+            setN8nResponse(null)
+            return
           }
 
           let data
