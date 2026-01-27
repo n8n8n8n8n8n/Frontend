@@ -14,9 +14,10 @@ import { Slider } from '@/components/ui/Slider'
 import { cn } from '@/lib/utils'
 import { createJudgeClient, validateJudgeResponse } from '@/lib/judge/client'
 import { QuickLogModal } from '@/components/log/QuickLogModal'
+import { normalizeN8nResponse, type NormalizedN8nResponse } from '@/lib/utils/n8nResponse'
 
-// 웹훅 URL (현재 비어있음, 나중에 설정)
-const WEBHOOK_URL = ''
+// 웹훅 URL
+const WEBHOOK_URL = 'https://primary-production-b57a.up.railway.app/webhook/submit'
 
 // n8n 페이로드 타입
 type N8nPayload = {
@@ -24,7 +25,7 @@ type N8nPayload = {
   problemId: number
   language: string
   code: string
-  timeSpent: number
+  timeSpentMin: number
   hintUsed: boolean
   selfReportDifficulty: number
 }
@@ -171,6 +172,10 @@ export default function SolvePage({ params }: SolvePageProps) {
   // 체감 난이도 상태
   const [selfReportDifficulty, setSelfReportDifficulty] = useState(3)
 
+  // n8n 웹훅 응답 상태
+  const [n8nResponse, setN8nResponse] = useState<NormalizedN8nResponse | null>(null)
+  const [n8nError, setN8nError] = useState<string | null>(null)
+
   // 시간 측정 타이머
   useEffect(() => {
     if (isTimerRunning) {
@@ -248,6 +253,8 @@ export default function SolvePage({ params }: SolvePageProps) {
       setShowHint(false)
       setShowHintConfirm(false)
       setSelfReportDifficulty(3)
+      setN8nResponse(null)
+      setN8nError(null)
     }
 
     // 이미 초기화되었으면 스킵
@@ -370,6 +377,9 @@ export default function SolvePage({ params }: SolvePageProps) {
       return
     }
 
+    setN8nError(null)
+    setN8nResponse(null)
+
     // problemId는 문제 ID를 정수로 변환
     // session.problem.id가 숫자 문자열이면 정수로 변환, 아니면 0 사용
     const problemIdStr = session.problem.id || '0'
@@ -380,13 +390,14 @@ export default function SolvePage({ params }: SolvePageProps) {
       problemId: problemId,
       language: 'python', // 고정값 (요구사항)
       code: code.trim(),
-      timeSpent: elapsedSeconds, // 초 단위로 전달
+      timeSpentMin: Math.floor(elapsedSeconds / 60), // 분 단위로 전달
       hintUsed: hintUsed,
       selfReportDifficulty: selfReportDifficulty,
     }
 
     try {
-      const response = await fetch(WEBHOOK_URL, {
+      // 먼저 직접 웹훅 호출 시도
+      let response = await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -394,14 +405,45 @@ export default function SolvePage({ params }: SolvePageProps) {
         body: JSON.stringify(payload),
       })
 
+      // CORS 에러가 발생하면 API 라우트를 통해 재시도
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const errorText = await response.text()
+        throw new Error(`HTTP ${response.status}: ${errorText}`)
       }
 
+      const data = await response.json()
+      const normalized = normalizeN8nResponse(data)
+      setN8nResponse(normalized)
       console.log('n8n으로 전송 성공:', payload)
-    } catch (error) {
-      console.error('n8n 전송 중 오류:', error)
-      // 에러가 발생해도 제출은 계속 진행
+    } catch (error: any) {
+      // CORS 에러 체크
+      if (error.message?.includes('CORS') || error.message?.includes('Failed to fetch')) {
+        try {
+          // API 라우트를 통해 재시도
+          const proxyResponse = await fetch('/api/submit', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          })
+
+          if (!proxyResponse.ok) {
+            const errorText = await proxyResponse.text()
+            throw new Error(`HTTP ${proxyResponse.status}: ${errorText}`)
+          }
+
+          const data = await proxyResponse.json()
+          const normalized = normalizeN8nResponse(data)
+          setN8nResponse(normalized)
+        } catch (proxyError: any) {
+          console.error('프록시 요청 실패:', proxyError)
+          setN8nError(`프록시 요청 실패: ${proxyError.message}`)
+        }
+      } else {
+        console.error('n8n 전송 중 오류:', error)
+        setN8nError(error.message || '요청 실패')
+      }
     }
   }
 
@@ -594,7 +636,7 @@ export default function SolvePage({ params }: SolvePageProps) {
                     {showProblemPanel ? '문제 숨기기' : '문제 보기'}
                   </Button>
                 </div>
-                <div className="h-[400px] md:h-[500px]">
+                <div className="h-[350px] md:h-[450px]">
                   <MonacoEditor
                     language={monacoLanguage}
                     value={code}
@@ -837,88 +879,113 @@ export default function SolvePage({ params }: SolvePageProps) {
             </Card>
           )}
 
-          {/* Judge Result */}
-          {session.judge && (
-            <Card ref={judgeResultRef}>
-              <div className="space-y-6">
-                {/* Result Summary Bar */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-4 border-b border-[rgba(255,255,255,0.06)]">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Badge
-                      variant="muted"
-                      className={cn('text-xs font-medium', getVerdictColor(session.judge.verdict))}
+          {/* n8n 웹훅 채점 결과 */}
+          {n8nError && (
+            <Card className="border-red-500/20 bg-red-500/5">
+              <p className="text-sm text-red-400 font-medium mb-2">에러 발생</p>
+              <p className="text-xs text-red-300">{n8nError}</p>
+            </Card>
+          )}
+
+          {n8nResponse && (
+            <Card>
+              <h3 className="text-lg font-medium text-text-primary mb-4">채점 결과</h3>
+              
+              <div className="space-y-4">
+                {/* Verdict */}
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-sm font-medium text-text-secondary">결과</span>
+                    <span
+                      className={cn(
+                        'px-3 py-1 rounded-[6px] text-sm font-semibold',
+                        n8nResponse.verdict === 'AC'
+                          ? 'bg-green-500/20 text-green-400'
+                          : n8nResponse.verdict === 'WA'
+                          ? 'bg-red-500/20 text-red-400'
+                          : n8nResponse.verdict === 'TLE'
+                          ? 'bg-yellow-500/20 text-yellow-400'
+                          : 'bg-gray-500/20 text-gray-400'
+                      )}
                     >
-                      {getVerdictStatusLabel(session.judge.verdict)}
-                    </Badge>
-                    {session.judge.confidence !== undefined && (
-                      <span className="text-sm text-text-muted">
-                        신뢰도 {Math.round(session.judge.confidence * 100)}%
-                      </span>
-                    )}
-                    {session.judge.time_complexity && (
-                      <span className="text-sm text-text-muted">
-                        시간 복잡도: {session.judge.time_complexity}
-                      </span>
-                    )}
+                      {n8nResponse.verdict}
+                    </span>
                   </div>
-                  <Link href={`/check/${session.id}`} className="flex-shrink-0">
-                    <Button variant="primary" size="md" className="w-full sm:w-auto">
-                      이해도 확인하기
-                    </Button>
-                  </Link>
                 </div>
 
-                {/* Body Content - 2-column layout on desktop */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Left Column: 판정 이유 */}
-                  {session.judge.reasons.length > 0 && (
-                    <div>
-                      <h3 className="text-base font-medium text-text-primary mb-3">
-                        판정 이유
-                      </h3>
-                      <ul className="space-y-2.5">
-                        {session.judge.reasons.map((reason, idx) => (
-                          <li key={idx} className="text-sm text-text-muted flex items-start gap-2.5 leading-relaxed">
-                            <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-accent mt-1.5" />
-                            <span>{reason}</span>
-                          </li>
-                        ))}
-                      </ul>
+                {/* Passed/Total */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-text-secondary">통과한 테스트</span>
+                    <span className="text-sm text-text-primary">
+                      {n8nResponse.passed} / {n8nResponse.total}
+                    </span>
+                  </div>
+                  {n8nResponse.total > 0 && (
+                    <div className="h-2 bg-background-tertiary rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-accent transition-all duration-300"
+                        style={{ width: `${(n8nResponse.passed / n8nResponse.total) * 100}%` }}
+                      />
                     </div>
                   )}
-
-                  {/* Right Column: 엣지 케이스 + 시간 복잡도 */}
-                  <div className="space-y-6">
-                    {(session.judge.edge_cases_to_test && session.judge.edge_cases_to_test.length > 0) ||
-                     (session.judge.edge_cases && session.judge.edge_cases.length > 0) ? (
-                      <div>
-                        <h3 className="text-base font-medium text-text-primary mb-3">
-                          엣지 케이스
-                        </h3>
-                        <div className="flex flex-wrap gap-2">
-                          {(session.judge.edge_cases_to_test || session.judge.edge_cases || []).map((edgeCase, idx) => (
-                            <Badge
-                              key={idx}
-                              variant="muted"
-                              className="text-xs"
-                            >
-                              {edgeCase}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {session.judge.time_complexity && (
-                      <div>
-                        <h3 className="text-base font-medium text-text-primary mb-2">
-                          시간 복잡도
-                        </h3>
-                        <p className="text-sm text-text-muted leading-relaxed">{session.judge.time_complexity}</p>
-                      </div>
-                    )}
-                  </div>
                 </div>
+
+                {/* Understanding Level */}
+                {n8nResponse.understandingLevel && (
+                  <div>
+                    <span className="text-sm font-medium text-text-secondary">이해도: </span>
+                    <span className="text-sm text-text-primary">{n8nResponse.understandingLevel}</span>
+                  </div>
+                )}
+
+                {/* Needs Review */}
+                {n8nResponse.needsReview && (
+                  <div>
+                    <span className="inline-block px-3 py-1 rounded-[6px] text-sm font-medium bg-accent/20 text-accent">
+                      복습 필요
+                    </span>
+                  </div>
+                )}
+
+                {/* Review Days */}
+                {n8nResponse.reviewDays.length > 0 && (
+                  <div>
+                    <span className="text-sm font-medium text-text-secondary mb-2 block">복습 일정</span>
+                    <div className="flex flex-wrap gap-2">
+                      {n8nResponse.reviewDays.map((day, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-1 rounded-[6px] text-xs font-medium bg-background-tertiary text-text-secondary border border-border"
+                        >
+                          D+{day}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Hint Level 1 */}
+                {n8nResponse.hintLevel1 && (
+                  <div className="p-4 rounded-[8px] bg-accent/10 border border-accent/20">
+                    <p className="text-xs font-medium text-accent mb-2">힌트</p>
+                    <p className="text-sm text-text-primary whitespace-pre-wrap">{n8nResponse.hintLevel1}</p>
+                  </div>
+                )}
+
+                {/* Followup Questions */}
+                {n8nResponse.followupQuestions.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-text-secondary mb-3">추가 질문</p>
+                    <ol className="list-decimal list-inside space-y-2">
+                      {n8nResponse.followupQuestions.map((question, idx) => (
+                        <li key={idx} className="text-sm text-text-primary pl-2">
+                          {question}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
               </div>
             </Card>
           )}
