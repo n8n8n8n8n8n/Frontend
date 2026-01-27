@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -43,8 +44,42 @@ function formatDate(dateString: string): string {
   return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
 }
 
+function formatLastSolved(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const solvedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  
+  const diffTime = today.getTime() - solvedDate.getTime()
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+  
+  if (diffDays === 0) return '오늘'
+  if (diffDays === 1) return '어제'
+  if (diffDays > 0 && diffDays <= 7) return `${diffDays}일 전`
+  
+  // Format: 1/27
+  return date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+}
+
+function getPlatformColor(platform: string): string {
+  switch (platform) {
+    case 'BOJ': return 'text-blue-400'
+    case 'LeetCode': return 'text-orange-400'
+    case 'Programmers': return 'text-purple-400'
+    default: return 'text-text-muted'
+  }
+}
+
+function getDifficultyColor(difficulty: string): string {
+  const lower = difficulty.toLowerCase()
+  if (lower === 'easy') return 'text-green-400'
+  if (lower === 'medium') return 'text-yellow-400'
+  if (lower === 'hard') return 'text-red-400'
+  return 'text-text-muted'
+}
+
 function getStatusLine(session: Session): string {
-  // a) If judge exists: "Last judge: {verdict} ({confidence})"
+  // a) If judge exists: "마지막 채점: {verdict} ({confidence})"
   if (session.judge) {
     const verdictMap: Record<string, string> = {
       'PASS': '통과',
@@ -57,22 +92,27 @@ function getStatusLine(session: Session): string {
     const confidence = session.judge.confidence !== undefined 
       ? `${session.judge.confidence}/5`
       : 'N/A'
-    return `Last judge: ${verdict} (${confidence})`
+    return `마지막 채점: ${verdict} (${confidence})`
   }
   
-  // b) Else if understandingLevel exists: "Understanding: {SURFACE|PARTIAL|FULL}"
+  // b) Else if understandingLevel exists: "이해도: {SURFACE|PARTIAL|FULL}"
   if (session.understandingLevel) {
-    return `Understanding: ${getUnderstandingLabel(session.understandingLevel)}`
+    return `이해도: ${getUnderstandingLabel(session.understandingLevel)}`
   }
   
-  // c) Else: "No submission yet"
-  return 'No submission yet'
+  // c) Else: "아직 제출 없음"
+  return '아직 제출 없음'
 }
 
 export default function ReviewPage() {
+  const searchParams = useSearchParams()
+  const isDevMode = searchParams?.get('dev') === 'true'
+  
   const getTodayReviews = useSessionStore((s) => s.getTodayReviews)
   const getUpcomingReviews = useSessionStore((s) => s.getUpcomingReviews)
   const updateSession = useSessionStore((s) => s.updateSession)
+  const createSession = useSessionStore((s) => s.createSession)
+  const sessions = useSessionStore((s) => s.sessions)
   
   const [showListView, setShowListView] = useState(false)
   const [showRecall, setShowRecall] = useState(false)
@@ -81,10 +121,53 @@ export default function ReviewPage() {
   const [markingDone, setMarkingDone] = useState(false)
   const [justMarkedDone, setJustMarkedDone] = useState(false)
   const [showAllUpcoming, setShowAllUpcoming] = useState(false)
+  const [devSessionCreated, setDevSessionCreated] = useState(false)
   
   const now = useMemo(() => new Date(), [])
-  const todaySessions = useMemo(() => getTodayReviews(now), [getTodayReviews, now])
-  const upcomingSessions = useMemo(() => getUpcomingReviews(now), [getUpcomingReviews, now])
+  
+  // Dev mode: Create test session if needed
+  useEffect(() => {
+    if (isDevMode && !devSessionCreated) {
+      const todaySessions = getTodayReviews(now)
+      if (todaySessions.length === 0) {
+        // Create test session
+        const testProblem = {
+          id: 'dev-test-problem-' + Date.now(),
+          title: 'Two Sum',
+          platform: 'LeetCode',
+          difficulty: 'medium',
+          tags: ['Array', 'Hash Table'],
+          url: 'https://leetcode.com/problems/two-sum/',
+        }
+        
+        const sessionId = createSession(testProblem)
+        const todayReviewAt = new Date(now)
+        todayReviewAt.setHours(0, 0, 0, 0)
+        
+        updateSession(sessionId, {
+          understandingAnswers: {
+            q1: '해시 테이블을 사용하여 각 숫자와 인덱스를 저장하고, 목표값에서 현재 숫자를 뺀 값이 해시 테이블에 있는지 확인하는 방식으로 해결했습니다.',
+            q2: '시간 복잡도는 O(n), 공간 복잡도는 O(n)입니다. 배열을 한 번 순회하면서 해시 테이블에 저장하고 조회하기 때문입니다.',
+            q3: '중복된 숫자가 있을 수 있지만, 해시 테이블의 마지막 인덱스가 저장되므로 문제없습니다. 빈 배열이나 요소가 2개 미만인 경우는 제약 조건에서 처리됩니다.',
+          },
+          understandingLevel: 'PARTIAL',
+          reviewAt: todayReviewAt.toISOString(),
+          status: 'SCHEDULED',
+          judge: {
+            verdict: 'PASS',
+            confidence: 4,
+            reasons: ['모든 테스트 케이스를 통과했습니다'],
+            createdAt: new Date().toISOString(),
+          },
+        })
+        
+        setDevSessionCreated(true)
+      }
+    }
+  }, [isDevMode, devSessionCreated, now, getTodayReviews, createSession, updateSession])
+  
+  const todaySessions = useMemo(() => getTodayReviews(now), [getTodayReviews, now, sessions])
+  const upcomingSessions = useMemo(() => getUpcomingReviews(now), [getUpcomingReviews, now, sessions])
   
   const firstDueSession = todaySessions.length > 0 ? todaySessions[0] : null
   
@@ -158,9 +241,21 @@ export default function ReviewPage() {
         <div className="min-h-screen pb-20 md:pb-0">
           <div className="max-w-4xl mx-auto px-4 py-6 md:py-12">
             <div className="mb-8 md:mb-10">
-              <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary mb-2" style={{ letterSpacing: '-0.02em', fontWeight: 600 }}>
-                복습
-              </h1>
+              <div className="flex items-center justify-between mb-2">
+                <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary" style={{ letterSpacing: '-0.02em', fontWeight: 600 }}>
+                  복습
+                </h1>
+                {isDevMode && (
+                  <Badge variant="muted" className="text-xs">
+                    개발자 모드
+                  </Badge>
+                )}
+              </div>
+              {isDevMode && (
+                <p className="text-xs text-text-muted mt-2">
+                  개발자 모드가 활성화되었습니다. 테스트용 복습 항목이 자동으로 생성됩니다.
+                </p>
+              )}
             </div>
             
             <Card className="text-center py-12">
@@ -233,32 +328,116 @@ export default function ReviewPage() {
         <div className="min-h-screen pb-20 md:pb-0">
           <div className="max-w-4xl mx-auto px-4 py-6 md:py-12">
             <div className="mb-8 md:mb-10">
-              <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary mb-2" style={{ letterSpacing: '-0.02em', fontWeight: 600 }}>
-                복습
-              </h1>
+              <div className="flex items-center justify-between mb-2">
+                <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary" style={{ letterSpacing: '-0.02em', fontWeight: 600 }}>
+                  복습
+                </h1>
+                {isDevMode && (
+                  <Badge variant="muted" className="text-xs">
+                    개발자 모드
+                  </Badge>
+                )}
+              </div>
+              {isDevMode && (
+                <p className="text-xs text-text-muted mt-2">
+                  개발자 모드가 활성화되었습니다. 테스트용 복습 항목이 표시됩니다.
+                </p>
+              )}
             </div>
             
             {/* Active Review Card */}
             <Card className="mb-6">
               <div className="space-y-4">
-                {/* Header */}
-                <div>
-                  <h2 className="text-xl font-semibold text-text-primary mb-2">
+                {/* Header Row: Title + CTA Button */}
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+                  <h2 className="text-xl font-semibold text-text-primary flex-1 min-w-0">
                     {firstDueSession.problem.title}
                   </h2>
-                  <p className="text-xs text-text-muted mb-2">
-                    {firstDueSession.problem.platform} • {getDifficultyLabel(firstDueSession.problem.difficulty)} • {firstDueSession.problem.tags.slice(0, 3).join(', ')}
-                  </p>
-                  <p className="text-xs text-text-muted mb-2">
-                    {getStatusLine(firstDueSession)}
-                  </p>
-                  <p className="text-xs text-text-muted">
-                    {firstDueSession.reviewAt && (
-                      <>
-                        Due: {formatDate(firstDueSession.reviewAt) === '오늘' ? 'Due today' : formatDate(firstDueSession.reviewAt)}
-                      </>
+                  {!showRecall ? (
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={handleStartReview}
+                      className="w-full sm:w-auto sm:flex-shrink-0 min-w-[140px] sm:min-w-[160px]"
+                    >
+                      복습 시작
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={handleMarkDone}
+                      disabled={markingDone}
+                      className="w-full sm:w-auto sm:flex-shrink-0 min-w-[140px] sm:min-w-[160px]"
+                    >
+                      {markingDone ? '처리 중...' : '완료하기'}
+                    </Button>
+                  )}
+                </div>
+
+                {/* Second Row: Platform • Difficulty + Tag Chips */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={cn('text-xs font-medium', getPlatformColor(firstDueSession.problem.platform))}>
+                    {firstDueSession.problem.platform}
+                  </span>
+                  <span className="text-text-muted text-xs">•</span>
+                  <span className={cn('text-xs font-medium', getDifficultyColor(firstDueSession.problem.difficulty))}>
+                    {getDifficultyLabel(firstDueSession.problem.difficulty)}
+                  </span>
+                  {firstDueSession.problem.tags && firstDueSession.problem.tags.length > 0 && (
+                    <>
+                      <span className="text-text-muted text-xs">•</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {firstDueSession.problem.tags.slice(0, 3).map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="muted"
+                            className="text-[10px] py-0.5 px-2 rounded-full border border-[rgba(255,255,255,0.08)] bg-background-secondary"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-[rgba(255,255,255,0.06)]"></div>
+
+                {/* Third Row: Last Solved + Last Judge | Due Badge */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    {/* Last Solved - Emphasized */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-text-muted">마지막 풀이:</span>
+                      <span className="text-sm font-medium text-text-primary">
+                        {(() => {
+                          const lastSolvedDate = firstDueSession.reviewedAt || firstDueSession.createdAt
+                          if (!lastSolvedDate) return 'N/A'
+                          const formatted = formatLastSolved(lastSolvedDate)
+                          // If it's a relative date (오늘, 어제, N일 전), show it as is
+                          // Otherwise show the date format
+                          return formatted
+                        })()}
+                      </span>
+                    </div>
+                    {/* Last Judge - Less prominent */}
+                    {getStatusLine(firstDueSession) !== '아직 제출 없음' && (
+                      <p className="text-xs text-text-muted">
+                        {getStatusLine(firstDueSession)}
+                      </p>
                     )}
-                  </p>
+                  </div>
+                  {/* Due Badge */}
+                  {firstDueSession.reviewAt && (
+                    <Badge
+                      variant="muted"
+                      className="text-xs self-start sm:self-auto"
+                    >
+                      {formatDate(firstDueSession.reviewAt) === '오늘' ? '오늘 복습' : `복습 예정: ${formatDate(firstDueSession.reviewAt)}`}
+                    </Badge>
+                  )}
                 </div>
                 
                 {/* Recall Textarea (shown when Start review clicked) */}
@@ -267,7 +446,7 @@ export default function ReviewPage() {
                     <textarea
                       value={recallText}
                       onChange={(e) => setRecallText(e.target.value)}
-                      placeholder="Explain your approach in 3–5 sentences…"
+                      placeholder="접근 방법을 3-5문장으로 설명해주세요…"
                       className={cn(
                         'w-full min-h-[120px] px-4 py-3 rounded-[10px]',
                         'bg-background-tertiary border border-[rgba(255,255,255,0.06)]',
@@ -282,39 +461,15 @@ export default function ReviewPage() {
                         onClick={handleShowLastNotes}
                         className="text-xs text-text-muted hover:text-text-primary transition-colors"
                       >
-                        Show my last notes
+                        이전 노트 보기
                       </button>
                     )}
                   </div>
                 )}
                 
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-[rgba(255,255,255,0.06)]">
-                  {!showRecall ? (
-                    <Button
-                      variant="primary"
-                      size="lg"
-                      onClick={handleStartReview}
-                      className="flex-1"
-                    >
-                      Start review
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="primary"
-                      size="lg"
-                      onClick={handleMarkDone}
-                      disabled={markingDone}
-                      className="flex-1"
-                    >
-                      {markingDone ? 'Marking...' : 'Mark done'}
-                    </Button>
-                  )}
-                </div>
-                
                 {justMarkedDone && (
                   <div className="text-xs text-[#35c082] pt-2">
-                    ✓ Review completed. Loading next item...
+                    ✓ 복습 완료. 다음 항목 불러오는 중...
                   </div>
                 )}
               </div>
@@ -340,9 +495,16 @@ export default function ReviewPage() {
       <div className="min-h-screen pb-20 md:pb-0">
         <div className="max-w-4xl mx-auto px-4 py-6 md:py-12">
           <div className="mb-8 md:mb-10 flex items-center justify-between">
-            <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary" style={{ letterSpacing: '-0.02em', fontWeight: 600 }}>
-              복습
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl sm:text-3xl font-semibold text-text-primary" style={{ letterSpacing: '-0.02em', fontWeight: 600 }}>
+                복습
+              </h1>
+              {isDevMode && (
+                <Badge variant="muted" className="text-xs">
+                  개발자 모드
+                </Badge>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => setShowListView(false)}
