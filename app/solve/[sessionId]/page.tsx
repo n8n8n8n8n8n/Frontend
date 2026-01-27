@@ -33,10 +33,22 @@ type N8nPayload = {
 // Monaco Editor를 동적으로 로드 (SSR 방지)
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false })
 
+type SubmitStage = "idle" | "sending" | "grading" | "generating" | "rendering" | "success" | "error"
+
 interface SolvePageProps {
   params: {
     sessionId: string
   }
+}
+
+const STAGE_MESSAGES: Record<SubmitStage, string> = {
+  idle: "Submit",
+  sending: "제출 데이터 전송 중…",
+  grading: "서버에서 채점하는 중…",
+  generating: "피드백 생성 중…",
+  rendering: "결과 불러오는 중…",
+  success: "완료!",
+  error: "전송 실패. 다시 시도해주세요.",
 }
 
 function getPlatformColor(platform: string): string {
@@ -148,8 +160,11 @@ export default function SolvePage({ params }: SolvePageProps) {
   const [showQuickLog, setShowQuickLog] = useState(false)
   const [session, setSession] = useState<Session | undefined>(undefined)
   const [code, setCodeLocal] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState<SubmitStage>("idle")
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const stageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [hasSubmitted, setHasSubmitted] = useState(false)
+  const [submittedCode, setSubmittedCode] = useState<string>('')
   const [showProblemPanel, setShowProblemPanel] = useState(false)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const judgeResultRef = useRef<HTMLDivElement | null>(null)
@@ -255,6 +270,8 @@ export default function SolvePage({ params }: SolvePageProps) {
       setSelfReportDifficulty(3)
       setN8nResponse(null)
       setN8nError(null)
+      setHasSubmitted(false)
+      setSubmittedCode('')
     }
 
     // 이미 초기화되었으면 스킵
@@ -342,6 +359,11 @@ export default function SolvePage({ params }: SolvePageProps) {
     
     if (!session) return
     
+    // 코드가 변경되면 제출 상태 리셋 (제출한 코드와 다를 경우)
+    if (hasSubmitted && newCode.trim() !== submittedCode.trim()) {
+      setHasSubmitted(false)
+    }
+    
     // 기존 timeout 취소
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
@@ -352,7 +374,7 @@ export default function SolvePage({ params }: SolvePageProps) {
       setCode(session.id, newCode)
       setSession((prev) => prev ? { ...prev, code: newCode } : undefined)
     }, 500)
-  }, [session, setCode])
+  }, [session, setCode, hasSubmitted, submittedCode])
 
   // 언어 변경
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -362,13 +384,45 @@ export default function SolvePage({ params }: SolvePageProps) {
     setSession((prev) => prev ? { ...prev, language: newLanguage } : undefined)
   }
 
-  // Run 버튼
-  const handleRun = () => {
-    if (!session) return
-    const output = 'Ran successfully\n\nTest cases passed: 3/3'
-    updateSession(session.id, { runOutput: output })
-    setSession((prev) => prev ? { ...prev, runOutput: output } : undefined)
-  }
+  // 단계별 진행 타이머 관리
+  const startStageTimer = useCallback(() => {
+    // 기존 타이머 정리
+    if (stageTimerRef.current) {
+      clearTimeout(stageTimerRef.current)
+    }
+
+    const advanceStage = () => {
+      setSubmitStatus((current) => {
+        // 이미 완료되었거나 에러 상태면 진행하지 않음
+        if (current === "success" || current === "error" || current === "idle") {
+          return current
+        }
+
+        // 단계별 순환: sending -> grading -> generating -> grading (반복)
+        if (current === "sending") {
+          return "grading"
+        } else if (current === "grading") {
+          return "generating"
+        } else if (current === "generating") {
+          return "grading" // grading과 generating 사이를 반복
+        }
+        return current
+      })
+
+      // 다음 단계로 진행 (1.2초마다)
+      stageTimerRef.current = setTimeout(advanceStage, 1200)
+    }
+
+    // 첫 번째 단계 시작
+    stageTimerRef.current = setTimeout(advanceStage, 1200)
+  }, [])
+
+  const clearStageTimer = useCallback(() => {
+    if (stageTimerRef.current) {
+      clearTimeout(stageTimerRef.current)
+      stageTimerRef.current = null
+    }
+  }, [])
 
   // n8n 페이로드 빌드 및 전송
   const sendToN8n = async (session: Session, code: string) => {
@@ -411,7 +465,20 @@ export default function SolvePage({ params }: SolvePageProps) {
         throw new Error(`HTTP ${response.status}: ${errorText}`)
       }
 
-      const data = await response.json()
+      // 응답 본문 확인
+      const responseText = await response.text()
+      if (!responseText || responseText.trim() === '') {
+        throw new Error('서버에서 빈 응답을 받았습니다.')
+      }
+
+      let data
+      try {
+        data = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('JSON 파싱 실패:', parseError, '응답 본문:', responseText)
+        throw new Error(`서버 응답을 파싱할 수 없습니다: ${parseError instanceof Error ? parseError.message : '알 수 없는 오류'}`)
+      }
+
       const normalized = normalizeN8nResponse(data)
       setN8nResponse(normalized)
       console.log('n8n으로 전송 성공:', payload)
@@ -433,7 +500,20 @@ export default function SolvePage({ params }: SolvePageProps) {
             throw new Error(`HTTP ${proxyResponse.status}: ${errorText}`)
           }
 
-          const data = await proxyResponse.json()
+          // 응답 본문 확인
+          const proxyResponseText = await proxyResponse.text()
+          if (!proxyResponseText || proxyResponseText.trim() === '') {
+            throw new Error('서버에서 빈 응답을 받았습니다.')
+          }
+
+          let data
+          try {
+            data = JSON.parse(proxyResponseText)
+          } catch (parseError) {
+            console.error('JSON 파싱 실패:', parseError, '응답 본문:', proxyResponseText)
+            throw new Error(`서버 응답을 파싱할 수 없습니다: ${parseError instanceof Error ? parseError.message : '알 수 없는 오류'}`)
+          }
+
           const normalized = normalizeN8nResponse(data)
           setN8nResponse(normalized)
         } catch (proxyError: any) {
@@ -450,14 +530,27 @@ export default function SolvePage({ params }: SolvePageProps) {
   // Submit 버튼
   const handleSubmit = async () => {
     if (!session) return
-    setIsSubmitting(true)
+    if (submitStatus !== "idle") return // 이미 제출 중이면 무시
+
+    setSubmitStatus("sending")
     setSubmitError(null)
+    setN8nError(null)
+    setN8nResponse(null)
+    clearStageTimer()
+    startStageTimer()
 
     try {
       // n8n으로 데이터 전송
       await sendToN8n(session, code)
 
+      // 전송 완료 후 채점 단계로
+      setSubmitStatus("grading")
+      
       const judgeResult = await submitToJudge(session)
+      
+      // 채점 완료 후 렌더링 단계로
+      setSubmitStatus("rendering")
+      clearStageTimer()
       
       setJudgeResult(session.id, judgeResult)
       updateSession(session.id, { status: 'SUBMITTED' })
@@ -468,6 +561,18 @@ export default function SolvePage({ params }: SolvePageProps) {
       }
       setSession(updatedSession)
       
+      // 성공 상태로 전환
+      setSubmitStatus("success")
+      
+      // 제출 완료 상태 저장
+      setHasSubmitted(true)
+      setSubmittedCode(code.trim())
+      
+      // 1초 후 idle로 복귀
+      setTimeout(() => {
+        setSubmitStatus("idle")
+      }, 1000)
+
       // 판정 결과로 스크롤
       setTimeout(() => {
         judgeResultRef.current?.scrollIntoView({ 
@@ -475,17 +580,15 @@ export default function SolvePage({ params }: SolvePageProps) {
           block: 'start' 
         })
       }, 100)
-
-      // 자동 로그 프롬프트 표시 (로그가 아직 저장되지 않은 경우에만)
-      if (!session.loggedAt) {
-        setTimeout(() => {
-          setShowQuickLog(true)
-        }, 500) // 판정 결과를 본 후 모달 표시
-      }
     } catch (error) {
+      clearStageTimer()
+      setSubmitStatus("error")
       setSubmitError(error instanceof Error ? error.message : '제출 중 오류가 발생했습니다.')
-    } finally {
-      setIsSubmitting(false)
+      
+      // 3초 후 idle로 복귀
+      setTimeout(() => {
+        setSubmitStatus("idle")
+      }, 3000)
     }
   }
 
@@ -506,8 +609,9 @@ export default function SolvePage({ params }: SolvePageProps) {
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current)
       }
+      clearStageTimer()
     }
-  }, [])
+  }, [clearStageTimer])
 
   // 세션이 없으면 빈 상태 표시
   if (!session) {
@@ -839,23 +943,74 @@ export default function SolvePage({ params }: SolvePageProps) {
             )}
           </div>
 
-          {/* Buttons Row */}
-          <div className="flex items-center gap-3">
-            <Button
-              variant="secondary"
-              size="md"
-              onClick={handleRun}
-            >
-              Run
-            </Button>
-            <Button
-              variant="primary"
-              size="md"
-              onClick={handleSubmit}
-              disabled={isSubmitting || !code.trim()}
-            >
-              {isSubmitting ? '제출 중...' : 'Submit'}
-            </Button>
+          {/* Submit Button and Status */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <Button
+                variant={hasSubmitted ? "secondary" : "primary"}
+                size="md"
+                onClick={handleSubmit}
+                disabled={submitStatus !== "idle" || !code.trim()}
+                className="flex-1 sm:flex-initial"
+              >
+                {submitStatus === "idle" ? (
+                  "Submit"
+                ) : submitStatus === "success" ? (
+                  "완료!"
+                ) : submitStatus === "error" ? (
+                  "전송 실패"
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    {STAGE_MESSAGES[submitStatus]}
+                  </span>
+                )}
+              </Button>
+            </div>
+
+            {/* Status Indicator */}
+            {submitStatus !== "idle" && submitStatus !== "success" && submitStatus !== "error" && (
+              <div className="flex items-center gap-2 text-sm text-text-muted" aria-live="polite">
+                <span className="inline-block w-4 h-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+                <span>{STAGE_MESSAGES[submitStatus]}</span>
+              </div>
+            )}
+
+            {/* Progress Bar */}
+            {submitStatus !== "idle" && submitStatus !== "success" && submitStatus !== "error" && (
+              <div className="h-1 bg-background-tertiary rounded-full overflow-hidden">
+                <div className="h-full bg-accent/20 animate-pulse" style={{ width: '100%' }} />
+              </div>
+            )}
+
+            {/* Step Dots */}
+            {submitStatus !== "idle" && submitStatus !== "success" && submitStatus !== "error" && (
+              <div className="flex items-center justify-center gap-2">
+                {(["sending", "grading", "generating", "rendering"] as SubmitStage[]).map((stage, idx) => {
+                  const isActive = 
+                    (submitStatus === "sending" && idx === 0) ||
+                    ((submitStatus === "grading" || submitStatus === "generating") && (idx === 1 || idx === 2)) ||
+                    (submitStatus === "rendering" && idx === 3)
+                  const isPast = 
+                    (submitStatus === "grading" || submitStatus === "generating" || submitStatus === "rendering") && idx < 2 ||
+                    (submitStatus === "rendering" && idx < 3)
+
+                  return (
+                    <div
+                      key={stage}
+                      className={cn(
+                        "w-2 h-2 rounded-full transition-all duration-300",
+                        isActive
+                          ? "bg-accent scale-125"
+                          : isPast
+                          ? "bg-accent/50"
+                          : "bg-background-tertiary"
+                      )}
+                    />
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* Error Message */}
@@ -986,6 +1141,18 @@ export default function SolvePage({ params }: SolvePageProps) {
                     </ol>
                   </div>
                 )}
+
+                {/* 문제 기록하기 버튼 */}
+                <div className="pt-4 border-t border-[rgba(255,255,255,0.08)] flex justify-end">
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => setShowQuickLog(true)}
+                    disabled={!session || session.loggedAt !== undefined}
+                  >
+                    문제 기록하기
+                  </Button>
+                </div>
               </div>
             </Card>
           )}

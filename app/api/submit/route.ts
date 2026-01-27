@@ -39,7 +39,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const data = await response.json()
+    // 응답 본문 확인
+    const responseText = await response.text()
+    if (!responseText || responseText.trim() === '') {
+      return NextResponse.json(
+        { error: '서버에서 빈 응답을 받았습니다.' },
+        { status: 502 }
+      )
+    }
+
+    let data
+    try {
+      data = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error('JSON 파싱 실패:', parseError, '응답 본문:', responseText)
+      return NextResponse.json(
+        { 
+          error: '서버 응답을 파싱할 수 없습니다.', 
+          details: parseError instanceof Error ? parseError.message : '알 수 없는 오류',
+          rawResponse: responseText.substring(0, 500) // 처음 500자만 전송
+        },
+        { status: 502 }
+      )
+    }
+
     return NextResponse.json(data)
   } catch (error: any) {
     console.error('API 라우트 에러:', error)
