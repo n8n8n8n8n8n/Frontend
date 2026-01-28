@@ -16,6 +16,7 @@ import { createJudgeClient, validateJudgeResponse } from '@/lib/judge/client'
 import { QuickLogModal } from '@/components/log/QuickLogModal'
 import { normalizeN8nResponse, type NormalizedN8nResponse } from '@/lib/utils/n8nResponse'
 import { getHints } from '@/lib/api'
+import { Modal } from '@/components/ui/Modal'
 
 // 웹훅 URL
 const WEBHOOK_URL = 'https://primary-production-b57a.up.railway.app/webhook/submit'
@@ -123,6 +124,47 @@ function getUnderstandingBadgeStyle(level: string | null): string {
   return 'bg-gray-500/20 text-gray-400'
 }
 
+// Verdict 정보 타입
+type VerdictInfo = {
+  abbreviation: string
+  fullName: string
+  description: string
+}
+
+// Verdict 정보 맵
+const VERDICT_INFO: Record<string, VerdictInfo> = {
+  AC: {
+    abbreviation: 'AC',
+    fullName: 'Accepted',
+    description: '정답\n모든 테스트케이스를 통과했습니다. 코드가 올바르게 작동합니다.',
+  },
+  WA: {
+    abbreviation: 'WA',
+    fullName: 'Wrong Answer',
+    description: '오답\n코드는 실행되지만 출력 결과가 기대한 값과 다릅니다. 로직을 다시 확인해보세요.',
+  },
+  TLE: {
+    abbreviation: 'TLE',
+    fullName: 'Time Limit Exceeded',
+    description: '시간 초과\n제한 시간 내에 프로그램이 종료되지 않았습니다. 알고리즘의 시간 복잡도를 개선하거나 최적화가 필요합니다.',
+  },
+  MLE: {
+    abbreviation: 'MLE',
+    fullName: 'Memory Limit Exceeded',
+    description: '메모리 초과\n메모리 제한을 초과했습니다. 불필요한 메모리 사용을 줄이거나 더 효율적인 자료구조를 사용해보세요.',
+  },
+  RE: {
+    abbreviation: 'RE',
+    fullName: 'Runtime Error',
+    description: '런타임 에러\n프로그램 실행 중 오류가 발생했습니다. 배열 인덱스 범위 초과, null 참조, 0으로 나누기 등의 문제를 확인해보세요.',
+  },
+  CE: {
+    abbreviation: 'CE',
+    fullName: 'Compilation Error',
+    description: '컴파일 에러\n코드를 컴파일할 수 없습니다. 문법 오류, 타입 오류, 또는 잘못된 함수 호출 등을 확인해보세요.',
+  },
+}
+
 async function submitToJudge(session: Session): Promise<JudgeResult> {
   const client = createJudgeClient()
 
@@ -193,6 +235,7 @@ export default function SolvePage({ params }: SolvePageProps) {
   // n8n 웹훅 응답 상태
   const [n8nResponse, setN8nResponse] = useState<NormalizedN8nResponse | null>(null)
   const [n8nError, setN8nError] = useState<string | null>(null)
+  const [showVerdictModal, setShowVerdictModal] = useState(false)
 
   // 중복 제거된 테스트 케이스: input과 expectedOutput이 같은 테스트 케이스는 하나만 표시
   const uniqueTestCases = useMemo(() => {
@@ -1017,20 +1060,39 @@ export default function SolvePage({ params }: SolvePageProps) {
                   {/* 결과 */}
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-text-secondary">결과</span>
-                    <span
-                      className={cn(
-                        'px-3 py-1 rounded-[6px] text-sm font-semibold',
-                        n8nResponse.verdict === 'AC'
-                          ? 'bg-green-500/20 text-green-400'
-                          : n8nResponse.verdict === 'WA'
-                          ? 'bg-red-500/20 text-red-400'
-                          : n8nResponse.verdict === 'TLE'
-                          ? 'bg-yellow-500/20 text-yellow-400'
-                          : 'bg-gray-500/20 text-gray-400'
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={cn(
+                          'px-3 py-1 rounded-[6px] text-sm font-semibold',
+                          n8nResponse.verdict === 'AC'
+                            ? 'bg-green-500/20 text-green-400'
+                            : n8nResponse.verdict === 'WA'
+                            ? 'bg-red-500/20 text-red-400'
+                            : n8nResponse.verdict === 'TLE'
+                            ? 'bg-yellow-500/20 text-yellow-400'
+                            : n8nResponse.verdict === 'MLE'
+                            ? 'bg-orange-500/20 text-orange-400'
+                            : n8nResponse.verdict === 'RE'
+                            ? 'bg-purple-500/20 text-purple-400'
+                            : n8nResponse.verdict === 'CE'
+                            ? 'bg-pink-500/20 text-pink-400'
+                            : 'bg-gray-500/20 text-gray-400'
+                        )}
+                      >
+                        {VERDICT_INFO[n8nResponse.verdict] 
+                          ? `${VERDICT_INFO[n8nResponse.verdict].abbreviation} (${VERDICT_INFO[n8nResponse.verdict].fullName})`
+                          : n8nResponse.verdict}
+                      </span>
+                      {VERDICT_INFO[n8nResponse.verdict] && (
+                        <button
+                          onClick={() => setShowVerdictModal(true)}
+                          className="w-5 h-5 rounded-full bg-background-tertiary border border-border hover:bg-background-secondary hover:border-accent/30 transition-colors flex items-center justify-center text-xs text-text-muted hover:text-text-secondary"
+                          aria-label="판정 설명 보기"
+                        >
+                          ?
+                        </button>
                       )}
-                    >
-                      {n8nResponse.verdict}
-                    </span>
+                    </div>
                   </div>
 
                   {/* 이해도 */}
@@ -1260,6 +1322,32 @@ export default function SolvePage({ params }: SolvePageProps) {
         onSave={handleQuickLogSave}
         session={session}
       />
+
+      {/* Verdict 설명 모달 */}
+      {n8nResponse && VERDICT_INFO[n8nResponse.verdict] && (
+        <Modal
+          isOpen={showVerdictModal}
+          onClose={() => setShowVerdictModal(false)}
+          title={`${VERDICT_INFO[n8nResponse.verdict].abbreviation} - ${VERDICT_INFO[n8nResponse.verdict].fullName}`}
+        >
+          <div className="space-y-4">
+            <div className="p-4 rounded-lg bg-background-tertiary border border-border">
+              <p className="text-sm text-text-primary whitespace-pre-line leading-relaxed">
+                {VERDICT_INFO[n8nResponse.verdict].description}
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => setShowVerdictModal(false)}
+              >
+                확인
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }
